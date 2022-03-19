@@ -1,0 +1,11 @@
+# option
+string INSERT = insert
+string DELETE = delete
+string UPDATE = update
+string SELECT = select
+
+string option
+ros_sqlite_database/map data
+---
+uint8 result
+ros_sqlite_database/map[] data
