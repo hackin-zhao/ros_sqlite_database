@@ -70,22 +70,23 @@ namespace database
         {
             ROS_INFO_STREAM("receive req: " << req);
 
+            std::string sql;
+            Msg msg = req.data;
+            int index = 0;
+            auto f = [&sql, &msg, &index, this](auto item, auto i)
+            {
+                std::string key = iguana::get_name<Msg>(decltype(i)::value).data();
+                std::string value;
+                if (setParam(msg.*item, index + 1, value))
+                {
+                    sql += key + "=" + value + " and ";
+                }
+                index++;
+            };
+
             if (req.option == RequestType::SELECT)
             {
-                Msg msg = req.data;
-                std::string sql;
-
-                int index = 0;
-                iguana::for_each(msg, [&sql, &msg, &index, this](auto item, auto i)
-                                 {
-                    std::string key = iguana::get_name<Msg>(decltype(i)::value).data();
-                    std::string value;
-                    if (setParam(msg.*item, index+1, value))
-                    {
-                        sql += key + "=" + value + " and ";
-                    }
-                    index++; });
-
+                iguana::for_each(msg, f);
                 if (sql.empty())
                 {
                     res.data = db_opt_.query();
@@ -107,7 +108,12 @@ namespace database
             }
             else if (req.option == RequestType::DELETE)
             {
-                db_opt_.delete_records();
+                iguana::for_each(msg, f);
+                if (!sql.empty())
+                {
+                    sql = sql.substr(0, sql.length() - strlen("and "));
+                    db_opt_.delete_records(sql);
+                }
             }
             else
             {
