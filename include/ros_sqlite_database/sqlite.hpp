@@ -70,8 +70,6 @@ namespace sqlite_wapper
 
             std::string sql = generate_createtb_sql<T>(std::forward<Args>(args)...);
 
-            ROS_DEBUG_STREAM(sql);
-
             if (sqlite3_exec(handle_, sql.data(), nullptr, nullptr, nullptr) != SQLITE_OK)
             {
                 set_last_error(sqlite3_errmsg(handle_));
@@ -119,9 +117,6 @@ namespace sqlite_wapper
         bool delete_records(Args &&...where_conditon)
         {
             auto sql = generate_delete_sql<T>(std::forward<Args>(where_conditon)...);
-
-            ROS_DEBUG_STREAM(sql);
-
             if (sqlite3_exec(handle_, sql.data(), nullptr, nullptr, nullptr) != SQLITE_OK)
             {
                 set_last_error(sqlite3_errmsg(handle_));
@@ -137,8 +132,6 @@ namespace sqlite_wapper
         {
             std::string sql = generate_query_sql<T>(args...);
             constexpr auto SIZE = iguana::get_value<T>();
-
-            ROS_DEBUG_STREAM(sql);
 
             int result = sqlite3_prepare_v2(handle_, sql.data(), (int)sql.size(), &stmt_, nullptr);
             if (result != SQLITE_OK)
@@ -184,8 +177,6 @@ namespace sqlite_wapper
 
                 sql = get_sql(sql, std::forward<Args>(args)...);
             }
-
-            ROS_DEBUG_STREAM(sql);
 
             int result = sqlite3_prepare_v2(handle_, sql.data(), (int)sql.size(), &stmt_, nullptr);
             if (result != SQLITE_OK)
@@ -248,37 +239,33 @@ namespace sqlite_wapper
         }
 
         // transaction
-        bool begin()
+        int begin()
         {
-            if (sqlite3_exec(handle_, "BEGIN", nullptr, nullptr, nullptr) != SQLITE_OK)
+            int ret = sqlite3_exec(handle_, "BEGIN", nullptr, nullptr, nullptr);
+            if (ret != SQLITE_OK)
+                set_last_error(sqlite3_errmsg(handle_));
+
+            return ret;
+        }
+
+        int commit()
+        {
+            int ret = sqlite3_exec(handle_, "COMMIT", nullptr, nullptr, nullptr);
+            if (ret != SQLITE_OK)
             {
                 set_last_error(sqlite3_errmsg(handle_));
-                return false;
             }
 
             return true;
         }
 
-        bool commit()
+        int rollback()
         {
-            if (sqlite3_exec(handle_, "COMMIT", nullptr, nullptr, nullptr) != SQLITE_OK)
-            {
+            int ret = sqlite3_exec(handle_, "ROLLBACK", nullptr, nullptr, nullptr);
+            if (ret != SQLITE_OK)
                 set_last_error(sqlite3_errmsg(handle_));
-                return false;
-            }
 
-            return true;
-        }
-
-        bool rollback()
-        {
-            if (sqlite3_exec(handle_, "ROLLBACK", nullptr, nullptr, nullptr) != SQLITE_OK)
-            {
-                set_last_error(sqlite3_errmsg(handle_));
-                return false;
-            }
-
-            return true;
+            return ret;
         }
 
     private:
@@ -466,7 +453,7 @@ namespace sqlite_wapper
             if (result != SQLITE_OK)
             {
                 set_last_error(sqlite3_errmsg(handle_));
-                return INT_MIN;
+                return result;
             }
 
             auto guard = guard_statment(stmt_);
@@ -478,10 +465,10 @@ namespace sqlite_wapper
             iguana::for_each(t, [&t, &bind_ok, &auto_key, &index, this](auto item, auto i)
                              {
                 if(!bind_ok)
-                    return;
+                    return -1;
 
                 if(!auto_key.empty()&&auto_key==iguana::get_name<T>(decltype(i)::value).data()){
-                    return;
+                    return -1;
                 }
 
                 bind_ok = set_param_bind(t.*item, index+1);
@@ -490,17 +477,17 @@ namespace sqlite_wapper
             if (!bind_ok)
             {
                 set_last_error(sqlite3_errmsg(handle_));
-                return INT_MIN;
+                return -1;
             }
 
             result = sqlite3_step(stmt_);
             if (result != SQLITE_DONE)
             {
                 set_last_error(sqlite3_errmsg(handle_));
-                return INT_MIN;
+                return result;
             }
 
-            return 1;
+            return 0;
         }
 
         template <typename T, typename... Args>
@@ -510,16 +497,16 @@ namespace sqlite_wapper
             if (result != SQLITE_OK)
             {
                 set_last_error(sqlite3_errmsg(handle_));
-                return INT_MIN;
+                return result;
             }
 
             auto guard = guard_statment(stmt_);
 
-            bool b = begin();
+            int b = begin();
             if (!b)
             {
                 set_last_error(sqlite3_errmsg(handle_));
-                return INT_MIN;
+                return b;
             }
 
             auto it = auto_key_map_.find(get_name<T>());
@@ -532,10 +519,10 @@ namespace sqlite_wapper
                 iguana::for_each(t, [&t, &bind_ok, &auto_key, &index, this](auto item, auto i)
                                  {
                     if(!bind_ok)
-                        return;
+                        return -1;
 
                     if(!auto_key.empty()&&auto_key==iguana::get_name<T>(decltype(i)::value).data()){
-                        return;
+                        return -1;
                     }
 
                     bind_ok = set_param_bind(t.*item, index+1);
@@ -545,7 +532,7 @@ namespace sqlite_wapper
                 {
                     rollback();
                     set_last_error(sqlite3_errmsg(handle_));
-                    return INT_MIN;
+                    return -1;
                 }
 
                 result = sqlite3_step(stmt_);
@@ -553,7 +540,7 @@ namespace sqlite_wapper
                 {
                     rollback();
                     set_last_error(sqlite3_errmsg(handle_));
-                    return INT_MIN;
+                    return result;
                 }
 
                 result = sqlite3_reset(stmt_);
@@ -561,13 +548,11 @@ namespace sqlite_wapper
                 {
                     rollback();
                     set_last_error(sqlite3_errmsg(handle_));
-                    return INT_MIN;
+                    return result;
                 }
             }
 
-            b = commit();
-
-            return b ? (int)v.size() : INT_MIN;
+            return commit();
         }
 
         template <typename T>

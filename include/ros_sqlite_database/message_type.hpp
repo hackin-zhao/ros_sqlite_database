@@ -6,7 +6,7 @@
 
 namespace ros_sqlite_database
 {
-    REFLECTION(map, name, type, resolution, width, height, origin_x, origin_y, data)
+    REFLECTION(map, map_id, name, type, resolution, width, height, origin_x, origin_y, data)
 
 } // namespace ros_sqlite_database
 

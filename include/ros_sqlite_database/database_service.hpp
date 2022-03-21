@@ -3,7 +3,7 @@
 
 #include <ros/ros.h>
 #include "ros_sqlite_database/message_option.hpp"
-#include "twc_database/utility.hpp"
+#include "ros_sqlite_database/utility.hpp"
 
 namespace database
 {
@@ -16,12 +16,13 @@ namespace database
         using ResponseType = typename ServiceT::Response;
         using Msg = decltype(std::declval<RequestType>().data);
 
-        DatabaseService(ros::NodeHandle &nh, const std::string &srv_name) : srv_name_(srv_name)
+        template <typename... Args>
+        DatabaseService(ros::NodeHandle &nh, const std::string &srv_name, Args &&...args) : srv_name_(srv_name)
         {
             std::string db_path;
             nh.param<std::string>("database_path", db_path, "/work/catkin_ws/test.db");
             db_opt_.connect(db_path.c_str());
-            db_opt_.create_datatable();
+            db_opt_.create_datatable(std::forward<Args>(args)...);
             server_ = nh.advertiseService(srv_name_, &DatabaseService::DBcallback, this);
         }
 
@@ -100,11 +101,11 @@ namespace database
             }
             else if (req.option == RequestType::INSERT)
             {
-                db_opt_.insert(req.data);
+                res.result = db_opt_.insert(req.data);
             }
             else if (req.option == RequestType::UPDATE)
             {
-                db_opt_.update(req.data);
+                res.result = db_opt_.update(req.data);
             }
             else if (req.option == RequestType::DELETE)
             {

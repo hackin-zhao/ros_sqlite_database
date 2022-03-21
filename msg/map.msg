@@ -2,6 +2,7 @@
 string FULL_MAP = full_map
 string VIRTUAL_WALL_MAP = virtual_wall_map
 
+uint64 map_id
 string name
 string type
 float32 resolution

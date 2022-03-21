@@ -1,5 +1,5 @@
 #ifndef _SQLITE_WAPPER_ENTITY_HPP_
-#define _SQLITE_WAPPER__ENTITY_HPP_
+#define _SQLITE_WAPPER_ENTITY_HPP_
 
 #include <set>
 #include <string>

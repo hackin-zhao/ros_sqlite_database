@@ -7,5 +7,5 @@ string SELECT = select
 string option
 ros_sqlite_database/map data
 ---
-uint8 result
+int8 result
 ros_sqlite_database/map[] data
