@@ -5,6 +5,7 @@
 #include <vector>
 #include <climits>
 #include <sqlite3.h>
+#include <ros/ros.h>
 #include "ros_sqlite_database/utility.hpp"
 
 namespace sqlite_wapper
@@ -69,6 +70,8 @@ namespace sqlite_wapper
 
             std::string sql = generate_createtb_sql<T>(std::forward<Args>(args)...);
 
+            ROS_DEBUG_STREAM(sql);
+
             if (sqlite3_exec(handle_, sql.data(), nullptr, nullptr, nullptr) != SQLITE_OK)
             {
                 set_last_error(sqlite3_errmsg(handle_));
@@ -116,6 +119,9 @@ namespace sqlite_wapper
         bool delete_records(Args &&...where_conditon)
         {
             auto sql = generate_delete_sql<T>(std::forward<Args>(where_conditon)...);
+
+            ROS_DEBUG_STREAM(sql);
+
             if (sqlite3_exec(handle_, sql.data(), nullptr, nullptr, nullptr) != SQLITE_OK)
             {
                 set_last_error(sqlite3_errmsg(handle_));
@@ -131,6 +137,8 @@ namespace sqlite_wapper
         {
             std::string sql = generate_query_sql<T>(args...);
             constexpr auto SIZE = iguana::get_value<T>();
+
+            ROS_DEBUG_STREAM(sql);
 
             int result = sqlite3_prepare_v2(handle_, sql.data(), (int)sql.size(), &stmt_, nullptr);
             if (result != SQLITE_OK)
@@ -176,6 +184,8 @@ namespace sqlite_wapper
 
                 sql = get_sql(sql, std::forward<Args>(args)...);
             }
+
+            ROS_DEBUG_STREAM(sql);
 
             int result = sqlite3_prepare_v2(handle_, sql.data(), (int)sql.size(), &stmt_, nullptr);
             if (result != SQLITE_OK)
