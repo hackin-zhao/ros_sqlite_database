@@ -1,0 +1,5 @@
+<launch>
+  <node name="ros_sqlite_database" pkg="ros_sqlite_database" type="ros_sqlite_database_node" output="screen">
+    <param name="database_path" value="$(find ros_sqlite_database)/db/test.db"/>
+  </node>
+</launch>
